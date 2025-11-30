@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-connection_string = os.getenv("CONNECTION_STRING")
+connection_string = os.getenv("Driver={ODBC Driver 18 for SQL Server};Server=tcp:akssql1.database.windows.net,1433;Database=sqldatabase1;Uid=akssql;Pwd=Sql@1234;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
 app = FastAPI()
 
@@ -32,6 +32,7 @@ class Task(BaseModel):
 def create_tasks_table():
     try:
         conn = pyodbc.connect(connection_string)
+    
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE Tasks (

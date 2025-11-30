@@ -1,27 +1,20 @@
-FROM python:3.9-slim
+# Use the official Python image as the base image
+FROM python:3.9
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    gnupg2 \
-    apt-transport-https \
-    unixodbc \
-    unixodbc-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Microsoft repo setup without apt-key
-RUN curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
-
-# Install MS ODBC driver
-RUN apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql17 \
-    && rm -rf /var/lib/apt/lists/*
-
+# Set the working directory in the container
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+# Copy the application files into the container
 COPY . .
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Install necessary packages
+RUN apt-get update && apt-get install -y unixodbc unixodbc-dev
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+RUN curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
+RUN apt-get update
+RUN ACCEPT_EULA=Y apt-get install -y msodbcsql17
 
+RUN pip install -r requirements.txt
+
+# Start the FastAPI application
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

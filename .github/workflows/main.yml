@@ -141,11 +141,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download updated manifests
-        uses: actions/download-artifact@v4
-        with:
-          name: manifests
-          path: manifests/
+      # - name: Download updated manifests
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: manifests
+      #     path: manifests/
 
       - name: Azure Login
         uses: azure/login@v2

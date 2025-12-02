@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-connection_string = os.getenv("CONNECTION_STRING")
+# connection_string = os.getenv("CONNECTION_STRING")
+connection_string = "UPDATE CONNECTION STRING HERE"
 
 app = FastAPI()
 
@@ -32,7 +33,6 @@ class Task(BaseModel):
 def create_tasks_table():
     try:
         conn = pyodbc.connect(connection_string)
-    
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE Tasks (
@@ -87,7 +87,7 @@ def create_task(task: Task):
         conn.commit()
     return task
 
-Update an existing task by ID
+# Update an existing task by ID
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, updated_task: Task):
     with pyodbc.connect(connection_string) as conn:
@@ -95,8 +95,6 @@ def update_task(task_id: int, updated_task: Task):
         cursor.execute("UPDATE Tasks SET Title = ?, Description = ? WHERE ID = ?", updated_task.title, updated_task.description, task_id)
         conn.commit()
         return {"message": "Task updated"}
-
-
 
 # Delete a task by ID
 @app.delete("/api/tasks/{task_id}")

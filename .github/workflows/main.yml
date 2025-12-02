@@ -17,6 +17,7 @@ env:
   AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
   IMAGE_TAG: ${{ github.run_number }}
   SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+  CONNECTION_STRING: ${{ secrets.CONNECTION_STRING}}
 
 jobs:
 

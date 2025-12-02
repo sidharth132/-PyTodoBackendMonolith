@@ -87,33 +87,14 @@ def create_task(task: Task):
         conn.commit()
     return task
 
-# Update an existing task by ID
-# @app.put("/tasks/{task_id}")
-# def update_task(task_id: int, updated_task: Task):
-#     with pyodbc.connect(connection_string) as conn:
-#         cursor = conn.cursor()
-#         cursor.execute("UPDATE Tasks SET Title = ?, Description = ? WHERE ID = ?", updated_task.title, updated_task.description, task_id)
-#         conn.commit()
-#         return {"message": "Task updated"}
-
-@app.post("/api/tasks")
-def create_task(task: Task):
+Update an existing task by ID
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, updated_task: Task):
     with pyodbc.connect(connection_string) as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO Tasks (Title, Description)
-            OUTPUT INSERTED.ID, INSERTED.Title, INSERTED.Description
-            VALUES (?, ?)
-        """, (task.title, task.description))
-        
-        new_task = cursor.fetchone()
+        cursor.execute("UPDATE Tasks SET Title = ?, Description = ? WHERE ID = ?", updated_task.title, updated_task.description, task_id)
         conn.commit()
-
-        return {
-            "ID": new_task.ID,
-            "Title": new_task.Title,
-            "Description": new_task.Description
-        }
+        return {"message": "Task updated"}
 
 
 

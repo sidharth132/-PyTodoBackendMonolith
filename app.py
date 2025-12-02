@@ -88,13 +88,27 @@ def create_task(task: Task):
     return task
 
 # Update an existing task by ID
-@app.put("/tasks/{task_id}")
+# @app.put("/tasks/{task_id}")
+# def update_task(task_id: int, updated_task: Task):
+#     with pyodbc.connect(connection_string) as conn:
+#         cursor = conn.cursor()
+#         cursor.execute("UPDATE Tasks SET Title = ?, Description = ? WHERE ID = ?", updated_task.title, updated_task.description, task_id)
+#         conn.commit()
+#         return {"message": "Task updated"}
+
+@app.put("/api/tasks/{task_id}")
 def update_task(task_id: int, updated_task: Task):
     with pyodbc.connect(connection_string) as conn:
         cursor = conn.cursor()
-        cursor.execute("UPDATE Tasks SET Title = ?, Description = ? WHERE ID = ?", updated_task.title, updated_task.description, task_id)
+        cursor.execute(
+            "UPDATE Tasks SET Title = ?, Description = ? WHERE ID = ?",
+            updated_task.title,
+            updated_task.description,
+            task_id
+        )
         conn.commit()
         return {"message": "Task updated"}
+
 
 # Delete a task by ID
 @app.delete("/api/tasks/{task_id}")

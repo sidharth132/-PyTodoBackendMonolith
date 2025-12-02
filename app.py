@@ -9,8 +9,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-connection_string = os.getenv("Driver={ODBC Driver 18 for SQL Server};Server=tcp:sqlsvr-devops-prod-indcentral.database.windows.net,1433;Database=sqdb-devops-prod-sonar;Uid=Sqlserver;Pwd=Sql@1234;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
-")
+connection_string = os.getenv("Driver={ODBC Driver 18 for SQL Server};Server=tcp:sqlsvr-devops-prod-indcentral.database.windows.net,1433;Database=sqdb-devops-prod-sonar;Uid=Sqlserver;Pwd=Sql@1234;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
 
 app = FastAPI()
 

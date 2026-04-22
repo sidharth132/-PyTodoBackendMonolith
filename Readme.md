@@ -46,6 +46,9 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 ## Step 4: Access the Application
 
 Your Python application is now running. You can access it by opening a web browser or sending HTTP requests to `http://localhost:8000` or by using VM's Public IP.
+## create secret
+
+kubectl create secret generic backend-secret --from-literal=CONNECTION_STRING="${{ env.CONNECTION_STRING }}" -n backend --dry-run=client -o yaml | kubectl apply -f -
 
 ## API Endpoints
 

@@ -50,20 +50,20 @@ spec:
   type: LoadBalancer
 
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ingress-nginx
-  namespace: backend
-spec:
-  ingressClassName: nginx       # should be nginx, not backend
-  rules:
-  - http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: backend-apps
-            port:
-              number: 8000
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: ingress-nginx
+#   namespace: backend
+# spec:
+#   ingressClassName: nginx       # should be nginx, not backend
+#   rules:
+#   - http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: backend-apps
+#             port:
+#               number: 8000

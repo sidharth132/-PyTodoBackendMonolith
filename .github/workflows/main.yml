@@ -135,63 +135,63 @@ jobs:
           name: trivy-image-report
           path: trivyimage.txt
 
-  Deploy:
-    needs: Build-Scan-Push
-    runs-on: ubuntu-latest
-    steps:
+  # Deploy:
+  #   needs: Build-Scan-Push
+  #   runs-on: ubuntu-latest
+  #   steps:
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
 
-      - name: Download updated manifests
-        uses: actions/download-artifact@v4
-        with:
-          name: manifests
-          path: manifests/
+  #     - name: Download updated manifests
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: manifests
+  #         path: manifests/
           
-      # - name: Debug downloaded manifest
-      #   run: cat manifests/combo.yaml
+  #     # - name: Debug downloaded manifest
+  #     #   run: cat manifests/combo.yaml
 
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+  #     - name: Azure Login
+  #       uses: azure/login@v2
+  #       with:
+  #         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Set AKS Context
-        uses: azure/aks-set-context@v4
-        with:
-          resource-group: ${{ env.AKS_RESOURCE_GROUP }}
-          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+  #     - name: Set AKS Context
+  #       uses: azure/aks-set-context@v4
+  #       with:
+  #         resource-group: ${{ env.AKS_RESOURCE_GROUP }}
+  #         cluster-name: ${{ env.AKS_CLUSTER_NAME }}
 
-      - name: Deploy Manifests to AKS
-        run: |
-          az account set --subscription ${{ env.SUBSCRIPTION_ID }}
-          az aks get-credentials \
-            --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
-            --name ${{ env.AKS_CLUSTER_NAME }} \
-            --overwrite-existing
+  #     - name: Deploy Manifests to AKS
+  #       run: |
+  #         az account set --subscription ${{ env.SUBSCRIPTION_ID }}
+  #         az aks get-credentials \
+  #           --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
+  #           --name ${{ env.AKS_CLUSTER_NAME }} \
+  #           --overwrite-existing
 
-          kubectl create ns backend --dry-run=client -o yaml | kubectl apply -f -
-          kubectl create secret generic backend-secret --from-literal=CONNECTION_STRING="${{ env.CONNECTION_STRING }}" -n backend --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -f manifests/ -n backend
+  #         kubectl create ns backend --dry-run=client -o yaml | kubectl apply -f -
+  #         kubectl create secret generic backend-secret --from-literal=CONNECTION_STRING="${{ env.CONNECTION_STRING }}" -n backend --dry-run=client -o yaml | kubectl apply -f -
+  #         kubectl apply -f manifests/ -n backend
 
-          kubectl get pods -n backend
-          kubectl get ingress -n backend -o wide
+  #         kubectl get pods -n backend
+  #         kubectl get ingress -n backend -o wide
 
-      - name: Send Email Notification
-        if: always()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USER }}
-          password: ${{ secrets.EMAIL_PASS }}
-          subject: "GitHub Actions Build ${{ job.status }}: backend CI/CD #${{ github.run_number }}"
-          html_body: |
-            <p>Build: ${{ job.status }}</p>
-            <p>Repository: ${{ github.repository }}</p>
-            <p>Branch: ${{ github.ref_name }}</p>
-            <p>Build URL: <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow</a></p>
-          to: ${{ secrets.EMAIL_USER }}
-          from: ${{ secrets.EMAIL_USER }}
+  #     - name: Send Email Notification
+  #       if: always()
+  #       uses: dawidd6/action-send-mail@v3
+  #       with:
+  #         server_address: smtp.gmail.com
+  #         server_port: 465
+  #         username: ${{ secrets.EMAIL_USER }}
+  #         password: ${{ secrets.EMAIL_PASS }}
+  #         subject: "GitHub Actions Build ${{ job.status }}: backend CI/CD #${{ github.run_number }}"
+  #         html_body: |
+  #           <p>Build: ${{ job.status }}</p>
+  #           <p>Repository: ${{ github.repository }}</p>
+  #           <p>Branch: ${{ github.ref_name }}</p>
+  #           <p>Build URL: <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Workflow</a></p>
+  #         to: ${{ secrets.EMAIL_USER }}
+  #         from: ${{ secrets.EMAIL_USER }}

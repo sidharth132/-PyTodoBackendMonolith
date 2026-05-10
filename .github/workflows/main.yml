@@ -78,7 +78,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Aqua Security Trivy FS
         uses: aquasecurity/trivy-action@master

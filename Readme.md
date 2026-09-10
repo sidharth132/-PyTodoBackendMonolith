@@ -54,6 +54,9 @@ ACCEPT_EULA=Y apt-get install -y msodbcsql17
 pip install -r requirements.txt
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
+# run below command to run application in background
+nohup uvicorn app:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+
 
 ## Step 4: Access the Application
 

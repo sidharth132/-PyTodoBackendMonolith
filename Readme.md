@@ -32,6 +32,18 @@ Edit the `app.py` file to update the `connection_string` variable with the appro
 To Run the Application, open a terminal, navigate to the project directory, and run the following command:
 
 ```bash
+# use below command to table created or not 
+SELECT TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE';
+
+#create table using below command 
+CREATE TABLE tasks (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    title NVARCHAR(255) NOT NULL,
+    description NVARCHAR(MAX) NULL,
+    completed BIT NOT NULL DEFAULT 0
+);
 
 sudo su
 apt-get update && apt-get install -y unixodbc unixodbc-dev

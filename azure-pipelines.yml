@@ -171,6 +171,7 @@ stages:
           cleanTargetFolder: false
           overwrite: true
 
+
       - task: SSH@0
         displayName: 'Install ODBC Driver 18 and Deploy Python App'
         inputs:
@@ -189,12 +190,12 @@ stages:
             }
 
             echo "Checking Microsoft ODBC Driver 18..."
-            if ! odbcinst -q -d | grep -Fq 'ODBC Driver 18 for SQL Server'; then
+            if ! odbcinst -q -d 2>/dev/null | grep -Fq 'ODBC Driver 18 for SQL Server'; then
               echo "Installing ODBC Driver 18 prerequisites..."
               sudo -n apt-get update
               sudo -n apt-get install -y curl gnupg unixodbc unixodbc-dev
 
-              echo "Configuring Microsoft package repository..."
+              echo "Configuring Microsoft repository for Debian 12..."
               curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
                 | sudo -n gpg --dearmor --yes -o /usr/share/keyrings/microsoft-prod.gpg
 
@@ -211,21 +212,52 @@ stages:
             odbcinst -q -d
 
             echo "Checking application files..."
-            test -f "$APP_DIR/requirements.txt"
-            test -x "$APP_DIR/venv/bin/python"
+            test -f "$APP_DIR/requirements.txt" || {
+              echo "ERROR: requirements.txt not found."
+              exit 1
+            }
+
+            test -f "$APP_DIR/app.py" || {
+              echo "ERROR: app.py not found."
+              exit 1
+            }
+
+            test -x "$APP_DIR/venv/bin/python" || {
+              echo "ERROR: Python virtual environment is missing."
+              exit 1
+            }
 
             echo "Installing Python dependencies..."
             "$APP_DIR/venv/bin/python" -m pip install -r "$APP_DIR/requirements.txt"
 
             echo "Restarting Python application..."
             sudo -n systemctl restart "$SERVICE"
-            sudo -n systemctl is-active --quiet "$SERVICE"
+            sleep 5
 
-            echo "Testing application..."
-            curl --fail --silent --show-error --max-time 10 \
-              http://127.0.0.1:8000/ >/dev/null
+            echo "Checking service status..."
+            if ! sudo -n systemctl is-active --quiet "$SERVICE"; then
+              echo "ERROR: Python application service failed."
+              sudo -n systemctl status "$SERVICE" --no-pager || true
+              sudo -n journalctl -u "$SERVICE" -n 100 --no-pager || true
+              exit 1
+            fi
+
+            sudo -n systemctl status "$SERVICE" --no-pager
+
+            echo "Recent application logs..."
+            sudo -n journalctl -u "$SERVICE" -n 30 --no-pager || true
+
+            echo "Testing application on port 8000..."
+            if ! curl --fail --silent --show-error --max-time 10 \
+              http://127.0.0.1:8000/ >/dev/null; then
+              echo "ERROR: Application is not responding on port 8000."
+              sudo -n systemctl status "$SERVICE" --no-pager || true
+              sudo -n journalctl -u "$SERVICE" -n 100 --no-pager || true
+              exit 1
+            fi
 
             echo "SUCCESS: ODBC Driver verified and Python application deployed."
           failOnStdErr: false
+
 
 

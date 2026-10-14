@@ -11,10 +11,10 @@ variables:
 
 stages:
   - stage: CI
-    displayName: React Build and Publish
+    displayName: Python Build and Publish
     jobs:
-      - job: ReactBuild
-        displayName: React Application Build
+      - job: PythonBuild
+        displayName: Python Application Build
 
         steps:
           - checkout: self
@@ -33,7 +33,7 @@ stages:
             displayName: 'OWASP Dependency Check'
             retryCountOnTaskFailure: 2
             inputs:
-              projectName: 'React App'
+              projectName: 'Python App'
               scanPath: '$(Build.SourcesDirectory)'
               format: 'HTML'
               uploadReports: true
@@ -80,8 +80,8 @@ stages:
               SonarQube: 'Sonarqube'
               scannerMode: 'CLI'
               configMode: 'manual'
-              cliProjectKey: 'react-app'
-              cliProjectName: 'React App'
+              cliProjectKey: 'Python-app'
+              cliProjectName: 'Python App'
               cliSources: 'src'
               extraProperties: |
                 sonar.exclusions=**/node_modules/**,**/dist/**,**/build/**

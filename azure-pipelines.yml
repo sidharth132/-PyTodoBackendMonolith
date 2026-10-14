@@ -160,6 +160,7 @@ stages:
           targetPath: '$(Pipeline.Workspace)/PythonArtifact'
 
       # Copy Python files to Linux VM
+
       - task: CopyFilesOverSSH@0
         displayName: 'Copy Python Files to Linux VM'
         inputs:
@@ -169,6 +170,14 @@ stages:
           targetFolder: '/opt/python-app'
           cleanTargetFolder: false
           overwrite: true
+      - task: SSH@0
+        displayName: 'Deploy Python Application'
+        inputs:
+          sshEndpoint: 'Linux-VM-SSHbackend'
+          runOptions: 'inline'
+          inline: |
+            ls -la /opt/python-app
+            # Add your application-specific restart command here
 
       # Install ODBC Driver 18 and restart application
       - task: SSH@0

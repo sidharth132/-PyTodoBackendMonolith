@@ -76,18 +76,19 @@ stages:
 
                 & "$javaHome\bin\java.exe" -version
 
+
           - task: SonarQubePrepare@8
             displayName: 'Prepare SonarQube Analysis'
-            condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
             inputs:
               SonarQube: 'Sonarqube'
-              scannerMode: 'CLI'
+              scannerMode: 'cli'
               configMode: 'manual'
               cliProjectKey: 'Python-app'
-              cliProjectName: 'Python App'
-              cliSources: 'src'
+              cliProjectName: 'Python-app'
+              cliSources: '.'
               extraProperties: |
-                sonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
+                sonar.exclusions=**/.venv/**,**/venv/**,**/__pycache__/**,**/site-packages/**,**/build/**,**/dist/**,**/.git/**
+
           
           - task: PowerShell@2
             displayName: 'Remove SonarQube Branch Parameter'

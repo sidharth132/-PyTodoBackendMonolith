@@ -41,20 +41,23 @@ stages:
               additionalArguments: '--nvdMaxRetryCount 20'
             continueOnError: true
 
+
           - task: UsePythonVersion@0
-            displayName: 'Install Python'
+            displayName: 'Use Python 3.12'
             inputs:
-              versionSpec: '3.x'
-              addToPath: true
+              versionSpec: '3.12'
               architecture: 'x64'
-          
+
           - task: PowerShell@2
             displayName: 'Install Python Dependencies'
             inputs:
               targetType: 'inline'
               script: |
-                python -m pip install --upgrade pip
-                python -m pip install -r requirements.txt
+                python --version
+                python -m pip install --upgrade pip setuptools wheel
+
+                python -m pip install --only-binary=:all: -r requirements.txt
+
 
 
           - task: PowerShell@2

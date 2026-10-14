@@ -170,42 +170,62 @@ stages:
           targetFolder: '/opt/python-app'
           cleanTargetFolder: false
           overwrite: true
+
       - task: SSH@0
-        displayName: 'Deploy Python Application'
+        displayName: 'Install ODBC Driver 18 and Deploy Python App'
         inputs:
           sshEndpoint: 'Linux-VM-SSHbackend'
           runOptions: 'inline'
           inline: |
-            ls -la /opt/python-app
-            # Add your application-specific restart command here
+            set -eu
 
-      # Install ODBC Driver 18 and restart application
-      - task: SSH@0
-        displayName: 'Configure ODBC Driver and Restart Python App'
-        inputs:
-          sshEndpoint: 'Linux-VM-SSHbackend'
-          runOptions: 'inline'
-          inline: |
-            set -e
+            APP_DIR="/opt/python-app"
+            SERVICE="python-app.service"
 
-            # Install system dependencies
-            sudo -n apt-get update
-            sudo -n apt-get install -y curl gnupg unixodbc unixodbc-dev
+            echo "Checking passwordless sudo permissions..."
+            sudo -n true || {
+              echo "ERROR: SSH user needs passwordless sudo permissions."
+              exit 1
+            }
 
-            # Configure Microsoft repository for Debian 12
-            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo -n gpg --dearmor --yes -o /usr/share/keyrings/microsoft-prod.gpg
+            echo "Checking Microsoft ODBC Driver 18..."
+            if ! odbcinst -q -d | grep -Fq 'ODBC Driver 18 for SQL Server'; then
+              echo "Installing ODBC Driver 18 prerequisites..."
+              sudo -n apt-get update
+              sudo -n apt-get install -y curl gnupg unixodbc unixodbc-dev
 
-            echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" | sudo -n tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
+              echo "Configuring Microsoft package repository..."
+              curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+                | sudo -n gpg --dearmor --yes -o /usr/share/keyrings/microsoft-prod.gpg
 
-            # Install Microsoft ODBC Driver 18
-            sudo -n apt-get update
-            sudo -n env ACCEPT_EULA=Y apt-get install -y msodbcsql18
+              echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+                | sudo -n tee /etc/apt/sources.list.d/mssql-release.list >/dev/null
 
-            # Verify ODBC driver
+              sudo -n apt-get update
+              sudo -n env ACCEPT_EULA=Y apt-get install -y msodbcsql18
+            else
+              echo "ODBC Driver 18 is already installed."
+            fi
+
+            echo "Verifying ODBC Driver..."
             odbcinst -q -d
 
-            # Restart Python application (no pip install here)
-            sudo -n systemctl restart python-app
-            sudo -n systemctl status python-app --no-pager
+            echo "Checking application files..."
+            test -f "$APP_DIR/requirements.txt"
+            test -x "$APP_DIR/venv/bin/python"
+
+            echo "Installing Python dependencies..."
+            "$APP_DIR/venv/bin/python" -m pip install -r "$APP_DIR/requirements.txt"
+
+            echo "Restarting Python application..."
+            sudo -n systemctl restart "$SERVICE"
+            sudo -n systemctl is-active --quiet "$SERVICE"
+
+            echo "Testing application..."
+            curl --fail --silent --show-error --max-time 10 \
+              http://127.0.0.1:8000/ >/dev/null
+
+            echo "SUCCESS: ODBC Driver verified and Python application deployed."
           failOnStdErr: false
+
 

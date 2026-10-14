@@ -1,15 +1,178 @@
 
-trigger:
-- none
+triagger:
+  - none
 
 pool:
-  vmImage: ubuntu-latest
+  name: application
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+variables:
+- group: owasp
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+
+stages:
+  - stage: CI
+    displayName: React Build and Publish
+    jobs:
+      - job: ReactBuild
+        displayName: React Application Build
+
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: Gitleaks@3
+            displayName: Gitleaks
+            inputs:
+              scanlocation: '$(Build.SourcesDirectory)'
+              configtype: 'default'
+              reportformat: 'sarif'
+              reportname: 'gitleakscan_report'
+            continueOnError: true
+
+          - task: dependency-check-build-task@6
+            displayName: 'OWASP Dependency Check'
+            retryCountOnTaskFailure: 2
+            inputs:
+              projectName: 'React App'
+              scanPath: '$(Build.SourcesDirectory)'
+              format: 'HTML'
+              uploadReports: true
+              nvdApiKey: '$(NVD_API_KEY)'
+              additionalArguments: '--nvdMaxRetryCount 20'
+            continueOnError: true
+
+
+          
+
+          - task: PowerShell@2
+            displayName: 'Set up Java 17'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $javaHome = 'C:\Program Files\Eclipse Adoptium\jdk-17.0.20.101-hotspot'
+
+                if (!(Test-Path "$javaHome\bin\java.exe")) {
+                  throw "Java 17 not found"
+                }
+
+                Write-Host "##vso[task.setvariable variable=JAVA_HOME]$javaHome"
+                Write-Host "##vso[task.prependpath]$javaHome\bin"
+
+                & "$javaHome\bin\java.exe" -version
+
+          - task: SonarQubePrepare@8
+            displayName: 'Prepare SonarQube Analysis'
+            condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
+            inputs:
+              SonarQube: 'Sonarqube'
+              scannerMode: 'CLI'
+              configMode: 'manual'
+              cliProjectKey: 'react-app'
+              cliProjectName: 'React App'
+              cliSources: 'src'
+              extraProperties: |
+                sonar.exclusions=**/node_modules/**,**/dist/**,**/build/**
+          
+          - task: PowerShell@2
+            displayName: 'Remove SonarQube Branch Parameter'
+            condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
+            inputs:
+              targetType: 'inline'
+              script: |
+                $params = $env:SONARQUBE_SCANNER_PARAMS
+
+                if ($params) {
+                  $settings = $params | ConvertFrom-Json
+                  $settings.PSObject.Properties.Remove('sonar.branch.name')
+                  $updated = $settings | ConvertTo-Json -Compress
+                  Write-Host "##vso[task.setvariable variable=SONARQUBE_SCANNER_PARAMS]$updated"
+                  Write-Host "Removed sonar.branch.name for Community Build"
+                } else {
+                  Write-Host "Scanner parameters not found; check pipeline logs"
+                }
+
+          - task: SonarQubeAnalyze@8
+            displayName: 'Run SonarQube Analysis'
+            condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
+
+          - task: SonarQubePublish@8
+            displayName: 'Publish SonarQube Quality Gate'
+            condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
+            inputs:
+              pollingTimeoutSec: '300'
+
+
+
+          
+          - task: Trivy@1
+            displayName: 'Trivy Filesystem Scan'
+            inputs:
+              version: 'latest'
+              docker: false
+              scanType: 'fs'
+              path: '.'
+              severity: 'HIGH,CRITICAL'
+              ignoreUnfixed: true
+              exitCode: '0'
+
+          
+
+
+
+
+          # Publish build as artifact
+          - task: PublishPipelineArtifact@1
+            displayName: Publish React Artifact
+            inputs:
+              targetPath: '$(Build.SourcesDirectory)/build'
+              artifact: 'react-build'
+              publishLocation: 'pipeline'
+
+
+
+
+  - stage: CD
+    displayName: Deploy to NginxVm
+    dependsOn: CI
+    condition: succeeded()
+
+    jobs:
+    - job: Deploy
+      displayName: Deploy React to Linux VM
+
+      steps:
+
+      - checkout: none
+
+      # Download React Artifact
+      - task: DownloadPipelineArtifact@2
+        displayName: Download React Artifact
+        inputs:
+          buildType: 'current'
+          artifactName: 'react-build'
+          targetPath: '$(Pipeline.Workspace)/react-build'
+
+      # Copy React files to Linux VM
+      - task: CopyFilesOverSSH@0
+        displayName: Copy React Files to Linux VM
+        inputs:
+          sshEndpoint: 'Linux-VM-SSHbaackend'
+          sourceFolder: '$(Pipeline.Workspace)/react-build'
+          contents: '**'
+          targetFolder: '/tmp/react-build'
+          cleanTargetFolder: true
+          overwrite: true
+
+      # Deploy to Nginx
+
+      - task: SSH@0
+        displayName: Deploy React to Nginx
+        inputs:
+          sshEndpoint: 'Linux-VM-SSHbackend'
+          runOptions: 'inline'
+          inline: |
+            sudo -n cp -a /tmp/react-build/. /var/www/html/
+            sudo -n rm -f /var/www/html/index.nginx-debian.html
+            sudo -n nginx -t
+            sudo -n systemctl reload nginx
+          failOnStdErr: false

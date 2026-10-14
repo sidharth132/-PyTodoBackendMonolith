@@ -1,5 +1,5 @@
 
-triagger:
+trigger:
   - none
 
 pool:
@@ -41,8 +41,21 @@ stages:
               additionalArguments: '--nvdMaxRetryCount 20'
             continueOnError: true
 
-
+          - task: UsePythonVersion@0
+            displayName: 'Install Python'
+            inputs:
+              versionSpec: '3.x'
+              addToPath: true
+              architecture: 'x64'
           
+          - task: PowerShell@2
+            displayName: 'Install Python Dependencies'
+            inputs:
+              targetType: 'inline'
+              script: |
+                python -m pip install --upgrade pip
+                python -m pip install -r requirements.txt
+
 
           - task: PowerShell@2
             displayName: 'Set up Java 17'
@@ -102,8 +115,6 @@ stages:
               pollingTimeoutSec: '300'
 
 
-
-          
           - task: Trivy@1
             displayName: 'Trivy Filesystem Scan'
             inputs:
@@ -115,64 +126,73 @@ stages:
               ignoreUnfixed: true
               exitCode: '0'
 
-          
 
-
-
-
-          # Publish build as artifact
           - task: PublishPipelineArtifact@1
-            displayName: Publish React Artifact
+            displayName: 'Publish Python Artifact'
             inputs:
-              targetPath: '$(Build.SourcesDirectory)/build'
-              artifact: 'react-build'
+              targetPath: '$(Build.SourcesDirectory)'
+              artifact: 'PythonArtifact'
               publishLocation: 'pipeline'
 
 
-
-
   - stage: CD
-    displayName: Deploy to NginxVm
+    displayName: 'Deploy Python Application'
     dependsOn: CI
     condition: succeeded()
 
     jobs:
     - job: Deploy
-      displayName: Deploy React to Linux VM
+      displayName: 'Deploy Python to Linux VM'
 
       steps:
-
       - checkout: none
 
-      # Download React Artifact
+      # Download Python Artifact
       - task: DownloadPipelineArtifact@2
-        displayName: Download React Artifact
+        displayName: 'Download Python Artifact'
         inputs:
           buildType: 'current'
-          artifactName: 'react-build'
-          targetPath: '$(Pipeline.Workspace)/react-build'
+          artifactName: 'PythonArtifact'
+          targetPath: '$(Pipeline.Workspace)/PythonArtifact'
 
-      # Copy React files to Linux VM
+      # Copy Python files to Linux VM
       - task: CopyFilesOverSSH@0
-        displayName: Copy React Files to Linux VM
+        displayName: 'Copy Python Files to Linux VM'
         inputs:
-          sshEndpoint: 'Linux-VM-SSHbaackend'
-          sourceFolder: '$(Pipeline.Workspace)/react-build'
+          sshEndpoint: 'Linux-VM-SSHbackend'
+          sourceFolder: '$(Pipeline.Workspace)/PythonArtifact'
           contents: '**'
-          targetFolder: '/tmp/react-build'
-          cleanTargetFolder: true
+          targetFolder: '/opt/python-app'
+          cleanTargetFolder: false
           overwrite: true
 
-      # Deploy to Nginx
-
+      # Install ODBC Driver 18 and restart application
       - task: SSH@0
-        displayName: Deploy React to Nginx
+        displayName: 'Configure ODBC Driver and Restart Python App'
         inputs:
           sshEndpoint: 'Linux-VM-SSHbackend'
           runOptions: 'inline'
           inline: |
-            sudo -n cp -a /tmp/react-build/. /var/www/html/
-            sudo -n rm -f /var/www/html/index.nginx-debian.html
-            sudo -n nginx -t
-            sudo -n systemctl reload nginx
+            set -e
+
+            # Install system dependencies
+            sudo -n apt-get update
+            sudo -n apt-get install -y curl gnupg unixodbc unixodbc-dev
+
+            # Configure Microsoft repository for Debian 12
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo -n gpg --dearmor --yes -o /usr/share/keyrings/microsoft-prod.gpg
+
+            echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" | sudo -n tee /etc/apt/sources.list.d/mssql-release.list > /dev/null
+
+            # Install Microsoft ODBC Driver 18
+            sudo -n apt-get update
+            sudo -n env ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+            # Verify ODBC driver
+            odbcinst -q -d
+
+            # Restart Python application (no pip install here)
+            sudo -n systemctl restart python-app
+            sudo -n systemctl status python-app --no-pager
           failOnStdErr: false
+

@@ -248,20 +248,27 @@ stages:
             sudo -n journalctl -u "$SERVICE" -n 30 --no-pager || true
 
 
-            echo "Testing application on port 8000..."
-            HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
-              --max-time 10 http://127.0.0.1:8000/)
 
-            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 500 ]; then
-              echo "SUCCESS: Application is responding. HTTP $HTTP_CODE"
+            echo "Testing FastAPI application on port 8000..."
+            HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+              --max-time 10 http://127.0.0.1:8000/openapi.json) || {
+              echo "ERROR: Application is not reachable on port 8000."
+              sudo -n systemctl status "$SERVICE" --no-pager || true
+              sudo -n journalctl -u "$SERVICE" -n 100 --no-pager || true
+              exit 1
+            }
+
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              echo "SUCCESS: FastAPI is responding. HTTP $HTTP_CODE"
             else
-              echo "ERROR: Application check failed. HTTP $HTTP_CODE"
+              echo "ERROR: FastAPI health check failed. HTTP $HTTP_CODE"
               sudo -n systemctl status "$SERVICE" --no-pager || true
               sudo -n journalctl -u "$SERVICE" -n 100 --no-pager || true
               exit 1
             fi
 
             echo "SUCCESS: ODBC Driver verified and Python application deployed."
+
 
           failOnStdErr: false
 
